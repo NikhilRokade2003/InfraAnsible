@@ -5,7 +5,12 @@
 
 import { create } from 'zustand';
 import { authApi } from '../api/api';
+import { mockApi } from '../api/mockApi';
 import type { User, LoginRequest } from '../types';
+
+// Check if running in demo mode
+const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
+const api = isDemoMode ? mockApi.auth : authApi;
 
 interface AuthState {
   user: User | null;
@@ -34,7 +39,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async (credentials: LoginRequest) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await authApi.login(credentials);
+      const response = await api.login(credentials);
       const { access_token, refresh_token, user } = response;
 
       // Store tokens in localStorage
@@ -65,7 +70,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: async () => {
     try {
-      await authApi.logout();
+      await api.logout();
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
@@ -90,7 +95,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     set({ isLoading: true });
     try {
-      const user = await authApi.getCurrentUser();
+      const user = await api.getCurrentUser();
       set({
         user,
         isAuthenticated: true,

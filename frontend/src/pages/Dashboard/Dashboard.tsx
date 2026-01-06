@@ -7,8 +7,11 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Server, FileCode, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { jobsApi, serversApi, playbooksApi } from '../../api/api';
+import { mockApi } from '../../api/mockApi';
 import type { JobStatistics, Job } from '../../types';
 import { StatusBadge } from '../../components/StatusBadge/StatusBadge';
+
+const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
 
 export const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<JobStatistics | null>(null);
@@ -24,17 +27,24 @@ export const Dashboard: React.FC = () => {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
+      
+      const api = isDemoMode ? mockApi : {
+        jobs: jobsApi,
+        servers: serversApi,
+        playbooks: playbooksApi,
+      };
+      
       const [jobStats, jobsResponse, serversResponse, playbooksResponse] = await Promise.all([
-        jobsApi.getStatistics(),
-        jobsApi.list({ page: 1, per_page: 5 }),
-        serversApi.list({ page: 1, per_page: 1 }),
-        playbooksApi.list({ page: 1, per_page: 1 }),
+        api.jobs.getStatistics(),
+        api.jobs.list({ page: 1, per_page: 5 }),
+        api.servers.list({ page: 1, per_page: 1 }),
+        api.playbooks.list({ page: 1, per_page: 1 }),
       ]);
 
       setStats(jobStats);
       setRecentJobs(jobsResponse.items);
-      setServerCount(serversResponse.pagination.total);
-      setPlaybookCount(playbooksResponse.pagination.total);
+      setServerCount(serversResponse.total);
+      setPlaybookCount(playbooksResponse.total);
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     } finally {
