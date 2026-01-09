@@ -16,8 +16,8 @@ class Config:
     
     # Database Configuration
     SQLALCHEMY_DATABASE_URI = os.getenv(
-        'DATABASE_URL',
-        'mysql+pymysql://root:password@localhost:3306/infra_automation'
+    "DATABASE_URL",
+    "mysql+pymysql://infra_user:infra_pass123@localhost/infra_automation"   
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = False

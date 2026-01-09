@@ -5,10 +5,14 @@ Creates and configures the Flask application with all extensions and blueprints
 import os
 import logging
 from logging.handlers import RotatingFileHandler
+from dotenv import load_dotenv
 from flask import Flask, jsonify
 from app.config import get_config
 from app.extensions import init_extensions, db, jwt
 from app.api import auth_bp, servers_bp, playbooks_bp, jobs_bp, users_bp
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 def create_app(config_name=None):

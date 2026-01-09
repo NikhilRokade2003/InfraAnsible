@@ -38,11 +38,16 @@ def init_extensions(app):
     # JWT Authentication
     jwt.init_app(app)
     
-    # CORS
+    # CORS - Allow all methods and headers for preflight requests
     cors.init_app(
         app,
-        origins=app.config['CORS_ORIGINS'],
-        supports_credentials=app.config['CORS_SUPPORTS_CREDENTIALS']
+        resources={r"/*": {
+            "origins": app.config['CORS_ORIGINS'],
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"],
+            "supports_credentials": app.config['CORS_SUPPORTS_CREDENTIALS'],
+            "expose_headers": ["Content-Type", "Authorization"]
+        }}
     )
     
     # Marshmallow

@@ -107,6 +107,15 @@ export const authApi = {
     return response.data;
   },
 
+  signup: async (data: {
+    username: string;
+    email: string;
+    password: string;
+  }): Promise<{ message: string; user: User }> => {
+    const response = await axiosInstance.post('/auth/signup', data);
+    return response.data;
+  },
+
   logout: async (): Promise<void> => {
     await axiosInstance.post('/auth/logout');
   },

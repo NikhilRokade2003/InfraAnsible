@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Plus, Search, Upload, Edit, Trash2, Play } from 'lucide-react';
+import { Search, Upload, Trash2, Play } from 'lucide-react';
 import { playbooksApi, serversApi, jobsApi } from '../../api/api';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';

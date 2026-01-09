@@ -4,6 +4,7 @@ Handles login, token refresh, and user registration
 """
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_cors import cross_origin
 from marshmallow import ValidationError
 from app.services.auth_service import auth_service
 from app.schemas import (
@@ -14,7 +15,8 @@ from app.schemas import (
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 
-@auth_bp.route('/login', methods=['POST'])
+@auth_bp.route('/login', methods=['POST', 'OPTIONS'])
+@cross_origin()
 def login():
     """
     User login endpoint
@@ -26,6 +28,10 @@ def login():
     Returns:
         access_token, refresh_token, and user info
     """
+    # Handle preflight request
+    if request.method == 'OPTIONS':
+        return '', 204
+    
     try:
         # Validate request
         data = user_login_schema.load(request.get_json())
@@ -136,6 +142,72 @@ def register():
             'message': 'Invalid request data',
             'details': err.messages
         })), 400
+    
+    except ValueError as err:
+        return jsonify(error_schema.dump({
+            'error': 'registration_failed',
+            'message': str(err)
+        })), 400
+    
+    except Exception as err:
+        return jsonify(error_schema.dump({
+            'error': 'internal_error',
+            'message': 'An error occurred during registration'
+        })), 500
+
+
+@auth_bp.route('/signup', methods=['POST', 'OPTIONS'])
+@cross_origin()
+def signup():
+    """
+    Public user registration (creates viewer role by default)
+    
+    Request Body:
+        username: str
+        email: str
+        password: str
+    
+    Returns:
+        Created user info
+    """
+    # Handle preflight request
+    if request.method == 'OPTIONS':
+        return '', 204
+    
+    try:
+        # Get request data
+        data = request.get_json()
+        
+        username = data.get('username')
+        email = data.get('email')
+        password = data.get('password')
+        
+        # Validate required fields
+        if not username or not email or not password:
+            return jsonify(error_schema.dump({
+                'error': 'validation_error',
+                'message': 'Username, email, and password are required'
+            })), 400
+        
+        # Validate password length
+        if len(password) < 8:
+            return jsonify(error_schema.dump({
+                'error': 'validation_error',
+                'message': 'Password must be at least 8 characters'
+            })), 400
+        
+        # Register user with viewer role
+        user = auth_service.register_user(
+            username=username,
+            email=email,
+            password=password,
+            role='viewer'  # Default role for self-registration
+        )
+        
+        return jsonify({
+            'message': 'Account created successfully',
+            'user': user_schema.dump(user)
+        }), 201
     
     except ValueError as err:
         return jsonify(error_schema.dump({
