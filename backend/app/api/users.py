@@ -208,7 +208,7 @@ def update_user(user_id):
 @jwt_required()
 def delete_user(user_id):
     """
-    Delete/deactivate user (admin only)
+    Delete/deactivate user (super_admin only)
     
     Returns:
         Success message
@@ -218,11 +218,11 @@ def delete_user(user_id):
         current_user_id = get_jwt_identity()
         current_user = auth_service.get_current_user(current_user_id)
         
-        # Check permission
-        if not auth_service.check_permission(current_user, 'admin'):
+        # Check permission - only super_admin can delete users
+        if current_user.role != 'super_admin':
             return jsonify(error_schema.dump({
                 'error': 'forbidden',
-                'message': 'Insufficient permissions to delete users'
+                'message': 'Only super admins can delete users'
             })), 403
         
         # Prevent self-deletion

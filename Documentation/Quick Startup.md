@@ -42,7 +42,8 @@ Running on http://0.0.0.0:5000
 
 -- cd ~/InfraAnsible/backend
 -- source venv/bin/activate
--- celery -A app worker --loglevel=info
+-- celery -A celery_worker worker --loglevel=info
+
 
 ✅ Expected:
 [INFO/MainProcess] celery@jgpnabhi ready.

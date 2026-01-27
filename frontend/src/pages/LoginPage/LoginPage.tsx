@@ -9,6 +9,9 @@ import { Lock, User, Mail, UserPlus, Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { authApi } from '../../api/api';
 import type { LoginRequest } from '../../types';
+import bgImage from '../../assets/PL-1.jpg';
+import logo from '../../assets/Logo1.png';
+import jadeLogo from '../../assets/JadeLogo-bg.png';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -145,36 +148,40 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center px-4">
+    <div className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-br from-gray-50 via-purple-50 to-gray-100">
+      {/* Logo in top left corner */}
+      <div className="absolute top-8 left-8">
+        <img 
+          src={logo} 
+          alt="Logo" 
+          className="w-40 h-40 shadow-md rounded-2xl" 
+        />
+      </div>
+      
+      {/* Main content centered */}
       <div className="max-w-md w-full">
-        {/* Logo and title */}
+        {/* Jade Logo and title */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-600 dark:bg-primary-700 rounded-full mb-4">
-            <span className="text-white font-bold text-2xl">IA</span>
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Infrastructure Automation
-          </h1>
-          <p className="text-gray-600 dark:text-gray-300">
-            {isSignupMode ? 'Create your account' : 'Sign in to manage your infrastructure'}
-          </p>
+          <img src={jadeLogo} alt="Jade Logo" className="w-64 h-32 mx-auto mb-6" />
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Infra Ansible Automation</h1>
+          <p className="text-gray-600">Streamline your infrastructure management</p>
         </div>
 
         {/* Login/Signup form */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-8">
+        <div className="bg-white rounded-lg shadow-glow-lg p-8 border border-primary-200">
           {isSignupMode ? (
             // Signup Form
             <form onSubmit={handleSignupSubmit} className="space-y-6">
               {/* Error message */}
               {signupError && (
-                <div className="bg-red-50 border border-red-300 text-red-800 px-4 py-3 rounded-md text-sm font-medium">
+                <div className="bg-error-50 border border-error-300 text-error-800 px-4 py-3 rounded-md text-sm font-medium">
                   {signupError}
                 </div>
               )}
 
               {/* Success message */}
               {signupSuccess && (
-                <div className="bg-green-50 border border-green-300 text-green-800 px-4 py-3 rounded-md text-sm font-medium">
+                <div className="bg-success-50 border border-success-300 text-success-800 px-4 py-3 rounded-md text-sm font-medium">
                   {signupSuccess}
                 </div>
               )}
@@ -285,7 +292,7 @@ export const LoginPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={signupLoading}
-                className="w-full flex justify-center items-center gap-2 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <UserPlus className="h-5 w-5" />
                 {signupLoading ? 'Creating account...' : 'Create Account'}
@@ -296,7 +303,7 @@ export const LoginPage: React.FC = () => {
             <form onSubmit={handleLoginSubmit} className="space-y-6">
               {/* Error message */}
               {error && (
-                <div className="bg-red-50 border border-red-300 text-red-800 px-4 py-3 rounded-md text-sm font-medium">
+                <div className="bg-error-50 border border-error-300 text-error-800 px-4 py-3 rounded-md text-sm font-medium">
                   {error}
                 </div>
               )}
@@ -361,7 +368,7 @@ export const LoginPage: React.FC = () => {
                   console.log('Button clicked!');
                   handleLoginSubmit(e as any);
                 }}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {isLoading ? 'Signing in...' : 'Sign in'}
               </button>
@@ -375,7 +382,7 @@ export const LoginPage: React.FC = () => {
                 <div className="w-full border-t border-gray-300"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">
+                <span className="px-2 bg-white text-gray-600">
                   {isSignupMode ? 'Already have an account?' : "Don't have an account?"}
                 </span>
               </div>
@@ -389,12 +396,7 @@ export const LoginPage: React.FC = () => {
             </button>
           </div>
 
-          {/* Footer info */}
-          {!isSignupMode && (
-            <div className="mt-6 text-center text-xs text-gray-500">
-              <p>Default credentials: admin / admin123</p>
-            </div>
-          )}
+          
         </div>
       </div>
     </div>

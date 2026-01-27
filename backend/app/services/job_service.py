@@ -256,14 +256,14 @@ class JobService:
     @staticmethod
     def cancel_job(job_id, user_id):
         """
-        Cancel and delete any job
+        Cancel a job and mark it as cancelled
         
         Args:
             job_id: Job ID
-            user_id: User ID cancelling/deleting the job
+            user_id: User ID cancelling the job
         
         Returns:
-            Deleted job object (for response)
+            Cancelled job object
         
         Raises:
             ValueError: If job not found
@@ -272,25 +272,23 @@ class JobService:
         if not job:
             raise ValueError(f"Job with ID {job_id} not found")
         
-        # Allow deletion of jobs in any status
+        # Update job status to cancelled
+        job.status = 'cancelled'
+        job.error_message = "Job cancelled by user"
         
-        # Store job info for audit log before deletion
-        job_uuid = job.job_id
+        # Set completed_at if not already set
+        if not job.completed_at:
+            from datetime import datetime
+            job.completed_at = datetime.utcnow()
         
-        # Create audit log before deletion
+        # Create audit log
         JobService._create_audit_log(
             user_id=user_id,
-            action='DELETE',
+            action='CANCEL',
             resource_id=job.id,
-            details={'job_id': job_uuid, 'reason': 'terminated_by_user'}
+            details={'job_id': job.job_id, 'reason': 'cancelled_by_user'}
         )
         
-        # Delete associated job logs first (foreign key constraint)
-        from app.models import JobLog
-        JobLog.query.filter_by(job_id=job.id).delete()
-        
-        # Delete the job
-        db.session.delete(job)
         db.session.commit()
         
         return job

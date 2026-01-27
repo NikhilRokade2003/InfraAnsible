@@ -4,14 +4,16 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Search, Filter, ArrowUpDown, RefreshCw, Zap, AlertTriangle, X, StopCircle } from 'lucide-react';
+import { Search, Filter, ArrowUpDown, RefreshCw, AlertTriangle, X, StopCircle } from 'lucide-react';
 import { jobsApi } from '../../api/api';
+import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { useNavigate } from 'react-router-dom';
 import type { Job } from '../../types';
 
 export const JobsPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   const { addNotification } = useUIStore();
 
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -20,6 +22,8 @@ export const JobsPage: React.FC = () => {
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [showResourceModal, setShowResourceModal] = useState(false);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
 
   useEffect(() => {
     loadJobs();
@@ -150,10 +154,10 @@ export const JobsPage: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold dark:text-white">Job History & Logs</h2>
+        <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Job History & Logs</h2>
         <button
           onClick={loadJobs}
-          className="flex items-center gap-2 px-4 py-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 text-gray-700 bg-gray-200 border border-gray-300 rounded-lg hover:bg-gray-300 transition-colors shadow-glow-sm hover:shadow-glow"
         >
           <RefreshCw className="h-4 w-4" />
           Refresh
@@ -169,41 +173,41 @@ export const JobsPage: React.FC = () => {
             placeholder="Search jobs by ID, playbook, or user..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-gray-800 text-white border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400"
+            className="w-full pl-12 pr-4 py-3 bg-white text-gray-900 border border-primary-200 shadow-glow rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 placeholder-gray-400"
           />
         </div>
-        <button className="flex items-center gap-2 px-4 py-3 bg-gray-800 text-white border border-gray-700 rounded-lg hover:bg-gray-700 transition-colors">
+        <button className="flex items-center gap-2 px-4 py-3 bg-gray-200 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-300 transition-colors">
           <Filter className="h-5 w-5" />
           All Statuses
         </button>
       </div>
 
       {/* Jobs Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+      <div className="bg-white border border-primary-200 shadow-glow rounded-lg shadow-lg overflow-hidden">
         <table className="w-full">
-          <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+          <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                 Job Details
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                 Status
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                 Target Nodes
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                 Timing
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+          <tbody className="bg-white divide-y divide-gray-200">
             {filteredJobs.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-500">
+                <td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-600">
                   No jobs found
                 </td>
               </tr>
@@ -213,16 +217,16 @@ export const JobsPage: React.FC = () => {
                 const isHighCpu = isHighCpuUsage(cpuUsage);
                 
                 return (
-                  <tr key={job.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                  <tr key={job.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <span className="text-gray-400">▶</span>
+                        <span className="text-gray-600">▶</span>
                         <div>
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            {job.playbook_name || 'Unknown Playbook'}
+                          <div className="text-sm font-medium text-gray-900">
+                            {job.playbook?.name || 'Unknown Playbook'}
                           </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            #{job.job_id} • by {job.user_id || 'admin'}
+                          <div className="text-xs text-gray-600">
+                            #{job.job_id} • by {job.user?.username || 'admin'}
                           </div>
                         </div>
                       </div>
@@ -231,48 +235,39 @@ export const JobsPage: React.FC = () => {
                       {getStatusBadge(job.status)}
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-                        <span className="text-gray-400">📋</span>
+                      <div className="flex items-center gap-2 text-sm text-gray-700">
+                        <span className="text-gray-600">📋</span>
                         {Math.floor(Math.random() * 5) + 1} Nodes
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900 dark:text-white">
+                      <div className="text-sm text-gray-900">
                         <div className="flex items-center gap-1">
-                          <span className="text-gray-400">🕐</span>
+                          <span className="text-gray-600">🕐</span>
                           {formatTime(job.started_at || job.created_at)}
                         </div>
-                        <div className="text-xs text-blue-600 dark:text-blue-400">
+                        <div className="text-xs text-primary-600">
                           {getEstimatedFinish(job)}
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => handleResourceClick(job)}
-                          className={`p-1.5 rounded transition-colors ${
-                            isHighCpu
-                              ? 'text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'
-                              : 'text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20'
-                          }`}
-                          title={isHighCpu ? 'High resource usage detected!' : 'Resource usage normal'}
-                        >
-                          <Zap className="h-5 w-5" fill={isHighCpu ? 'currentColor' : 'none'} />
-                        </button>
+                        {/* Delete button only for admins on non-cancelled jobs */}
+                        {isAdmin && job.status !== 'cancelled' && (
+                          <button
+                            onClick={(e) => handleStopJob(job, e)}
+                            className="p-1.5 rounded transition-colors text-red-600 hover:bg-red-50"
+                            title="Delete Job"
+                          >
+                            <StopCircle className="h-5 w-5" />
+                          </button>
+                        )}
                         
-                        {/* Stop/Delete button - always visible for all jobs */}
-                        <button
-                          onClick={(e) => handleStopJob(job, e)}
-                          className="p-1.5 rounded transition-colors text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
-                          title="Delete Job"
-                        >
-                          <StopCircle className="h-5 w-5" />
-                        </button>
-                        
+                        {/* Details button - always visible */}
                         <button
                           onClick={() => navigate(`/jobs/${job.id}`)}
-                          className="flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm font-medium"
+                          className="flex items-center gap-1 text-primary-600 hover:text-primary-800 text-sm font-medium"
                         >
                           <span>📄</span>
                           Details
@@ -290,18 +285,18 @@ export const JobsPage: React.FC = () => {
       {/* High Resource Usage Modal */}
       {showResourceModal && selectedJob && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md">
+          <div className="bg-white border border-primary-200 shadow-glow rounded-lg shadow-xl w-full max-w-md">
             {/* Modal Header */}
             <div className="p-6">
               <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
-                  <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
+                <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <AlertTriangle className="h-6 w-6 text-red-600" />
                 </div>
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
                     High Resource Usage Detected
                   </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-gray-600">
                     Server 1 is experiencing critical load.
                   </p>
                 </div>
@@ -310,20 +305,20 @@ export const JobsPage: React.FC = () => {
               {/* CPU Usage */}
               <div className="mt-6">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">CPU Usage</span>
-                  <span className="text-2xl font-bold text-red-600 dark:text-red-400">{getCpuUsage(selectedJob)}%</span>
+                  <span className="text-sm font-medium text-gray-700">CPU Usage</span>
+                  <span className="text-2xl font-bold text-red-600">{getCpuUsage(selectedJob)}%</span>
                 </div>
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
-                    className="bg-red-600 dark:bg-red-500 h-2 rounded-full transition-all duration-300"
+                    className="bg-red-600 h-2 rounded-full transition-all duration-300"
                     style={{ width: `${getCpuUsage(selectedJob)}%` }}
                   ></div>
                 </div>
               </div>
 
               {/* Process Info */}
-              <div className="mt-4 flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                <span className="text-red-600 dark:text-red-400">⚡</span>
+              <div className="mt-4 flex items-center gap-2 text-sm text-gray-700">
+                <span className="text-red-600">⚡</span>
                 <span className="font-mono">Process: ansible-deploy-app-v2.1</span>
               </div>
             </div>
@@ -332,14 +327,14 @@ export const JobsPage: React.FC = () => {
             <div className="flex gap-3 px-6 pb-6">
               <button
                 onClick={handleTerminateProcess}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-error-500 text-white rounded-lg hover:bg-error-600 transition-colors font-medium"
               >
                 <X className="h-4 w-4" />
                 Terminate Process
               </button>
               <button
                 onClick={handleIgnoreAndContinue}
-                className="flex-1 px-4 py-2.5 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors font-medium"
+                className="flex-1 px-4 py-2.5 text-gray-700 bg-gray-200 border border-gray-300 rounded-lg hover:bg-gray-300 transition-colors font-medium"
               >
                 Ignore & Continue
               </button>

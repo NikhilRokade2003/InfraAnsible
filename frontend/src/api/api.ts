@@ -204,6 +204,21 @@ export const playbooksApi = {
     return response.data;
   },
 
+  getContent: async (id: number): Promise<{ playbook_id: number; content: string }> => {
+    const response = await axiosInstance.get<{ playbook_id: number; content: string }>(
+      `/playbooks/${id}/content`
+    );
+    return response.data;
+  },
+
+  updateContent: async (id: number, content: string): Promise<{ message: string; playbook: Playbook }> => {
+    const response = await axiosInstance.put<{ message: string; playbook: Playbook }>(
+      `/playbooks/${id}/content`,
+      { content }
+    );
+    return response.data;
+  },
+
   upload: async (file: File, name: string, description?: string): Promise<Playbook> => {
     const formData = new FormData();
     formData.append('file', file);

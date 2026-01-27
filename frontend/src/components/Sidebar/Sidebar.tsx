@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
+import logo from '../../assets/Logo1.png';
 
 interface NavItem {
   name: string;
@@ -29,37 +30,37 @@ const navItems: NavItem[] = [
     name: 'Dashboard',
     path: '/',
     icon: LayoutDashboard,
-    roles: ['admin', 'operator', 'viewer'],
+    roles: ['super_admin', 'admin', 'user'],
   },
   {
     name: 'Servers',
     path: '/servers',
     icon: Server,
-    roles: ['admin', 'operator', 'viewer'],
+    roles: ['super_admin', 'admin', 'user'],
   },
   {
     name: 'Playbooks',
     path: '/playbooks',
     icon: FileCode,
-    roles: ['admin', 'operator', 'viewer'],
+    roles: ['super_admin', 'admin', 'user'],
   },
   {
     name: 'Jobs',
     path: '/jobs',
     icon: Clock,
-    roles: ['admin', 'operator', 'viewer'],
+    roles: ['super_admin', 'admin', 'user'],
   },
   {
     name: 'User Management',
     path: '/users',
     icon: Users,
-    roles: ['admin'],
+    roles: ['super_admin', 'admin'],
   },
   {
     name: 'Settings',
     path: '/settings',
     icon: SettingsIcon,
-    roles: ['admin', 'operator', 'viewer'],
+    roles: ['super_admin', 'admin', 'user'],
   },
 ];
 
@@ -79,25 +80,23 @@ export const Sidebar: React.FC = () => {
     <>
       {/* Mobile overlay */}
       <div
-        className="fixed inset-0 bg-gray-600 bg-opacity-50 z-20 lg:hidden"
+        className="fixed inset-0 bg-gray-600 dark:bg-gray-900 bg-opacity-50 dark:bg-opacity-70 z-20 lg:hidden"
         onClick={() => setSidebarOpen(false)}
       />
 
       {/* Sidebar */}
-      <aside className="fixed lg:static inset-y-0 left-0 z-30 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+      <aside className="fixed lg:static inset-y-0 left-0 z-30 w-64 bg-gray-100 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 shadow-glow-lg flex flex-col">
         {/* Logo and close button */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">IA</span>
-            </div>
-            <span className="font-semibold text-gray-800 dark:text-white">InfraAuto</span>
+            <img src={logo} alt="Logo" className="w-8 h-8 rounded-lg shadow-md" />
+            <span className="font-semibold text-gray-900 dark:text-white">Infra Ansible Automation</span>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden p-1 rounded hover:bg-gray-100"
+            className="lg:hidden p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
           >
-            <X className="h-5 w-5 text-gray-600" />
+            <X className="h-5 w-5 text-gray-700 dark:text-gray-300" />
           </button>
         </div>
 
@@ -111,10 +110,10 @@ export const Sidebar: React.FC = () => {
                   <NavLink
                     to={item.path}
                     className={({ isActive }) =>
-                      `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all ${
                         isActive
-                          ? 'bg-primary-50 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                          ? 'bg-primary-500 text-white shadow-glow-lg'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white hover:shadow-glow-sm'
                       }`
                     }
                   >

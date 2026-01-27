@@ -13,7 +13,7 @@ interface NotificationPreferences {
 
 export const SettingsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
-  const { theme, setTheme, autoRefresh, setAutoRefresh } = useThemeStore();
+  const { autoRefresh, setAutoRefresh, theme, setTheme } = useThemeStore();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -59,7 +59,7 @@ export const SettingsPage: React.FC = () => {
   return (
     <div className="flex h-full">
       {/* Secondary Sidebar for Settings Tabs */}
-      <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
+      <div className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 shadow-glow">
         <div className="p-4">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">System Settings</h2>
           <nav className="space-y-1">
@@ -71,8 +71,8 @@ export const SettingsPage: React.FC = () => {
                   onClick={() => setActiveTab(tab.id)}
                   className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                     activeTab === tab.id
-                      ? 'bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
                 >
                   <Icon className="w-5 h-5" />
@@ -91,46 +91,35 @@ export const SettingsPage: React.FC = () => {
           <div>
             <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">General Settings</h2>
             
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-6">
-              {/* Theme Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Application Theme
-                </label>
-                <div className="flex gap-4">
-                  <button
-                    onClick={() => setTheme('light')}
-                    className={`px-4 py-2 rounded-lg border-2 transition-all ${
-                      theme === 'light'
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-gray-300 text-gray-700 hover:border-gray-400'
-                    }`}
-                  >
-                    Light Mode
-                  </button>
-                  <button
-                    onClick={() => setTheme('dark')}
-                    className={`px-4 py-2 rounded-lg border-2 transition-all ${
-                      theme === 'dark'
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-gray-300 text-gray-700 hover:border-gray-400'
-                    }`}
-                  >
-                    Dark Mode
-                  </button>
+            <div className="bg-white dark:bg-gray-800 border border-primary-200 dark:border-gray-700 shadow-glow rounded-lg shadow-lg p-6 space-y-6">
+              {/* Theme Toggle */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                    Theme Mode
+                  </label>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    Switch between light and dark theme.
+                  </p>
                 </div>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                  Choose your preferred color scheme for the application.
-                </p>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={theme === 'dark'}
+                    onChange={(e) => setTheme(e.target.checked ? 'dark' : 'light')}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500 dark:peer-checked:bg-primary-600"></div>
+                </label>
               </div>
 
               {/* Auto Refresh */}
               <div className="flex items-center justify-between">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
                     Auto-refresh Dashboard
                   </label>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                     Automatically refresh job status and metrics every 30 seconds.
                   </p>
                 </div>
@@ -141,7 +130,7 @@ export const SettingsPage: React.FC = () => {
                     onChange={(e) => setAutoRefresh(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark:peer-focus:ring-primary-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500 dark:peer-checked:bg-primary-600"></div>
                 </label>
               </div>
 
@@ -149,7 +138,7 @@ export const SettingsPage: React.FC = () => {
               <div className="pt-4">
                 <button
                   onClick={handleSaveGeneral}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                  className="px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg flex items-center gap-2"
                 >
                   <Save className="w-4 h-4" />
                   Save Preferences
@@ -164,49 +153,49 @@ export const SettingsPage: React.FC = () => {
           <div>
             <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">Security & SSH</h2>
             
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-6">
+            <div className="bg-white dark:bg-gray-800 border border-primary-200 dark:border-gray-700 shadow-glow rounded-lg shadow-lg p-6 space-y-6">
               <div>
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Change Password</h3>
                 <div className="space-y-4 max-w-md">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                       Current Password
                     </label>
                     <input
                       type="password"
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600 focus:border-primary-500 focus:shadow-glow transition-all"
                       placeholder="Enter current password"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                       New Password
                     </label>
                     <input
                       type="password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600 focus:border-primary-500 focus:shadow-glow transition-all"
                       placeholder="Enter new password"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
                       Confirm New Password
                     </label>
                     <input
                       type="password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600 focus:border-primary-500 focus:shadow-glow transition-all"
                       placeholder="Confirm new password"
                     />
                   </div>
                   <button
                     onClick={handleChangePassword}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                    className="px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg flex items-center gap-2"
                   >
                     <Save className="w-4 h-4" />
                     Change Password
@@ -222,7 +211,7 @@ export const SettingsPage: React.FC = () => {
           <div>
             <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">Notification Preferences</h2>
             
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-6">
+            <div className="bg-white dark:bg-gray-800 border border-primary-200 dark:border-gray-700 shadow-glow rounded-lg shadow-lg p-6 space-y-6">
               <div className="space-y-4">
                 {/* Job Failures */}
                 <div className="flex items-start gap-3">
@@ -233,13 +222,13 @@ export const SettingsPage: React.FC = () => {
                     onChange={(e) =>
                       setNotifications({ ...notifications, jobFailures: e.target.checked })
                     }
-                    className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-0.5"
+                    className="w-5 h-5 text-primary-600 border-gray-300 dark:border-gray-600 rounded focus:ring-primary-500 mt-0.5"
                   />
                   <div>
-                    <label htmlFor="jobFailures" className="block text-sm font-medium text-gray-900 dark:text-white">
+                    <label htmlFor="jobFailures" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
                       Job failures
                     </label>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
                       Receive email and in-app notifications.
                     </p>
                   </div>
@@ -254,13 +243,13 @@ export const SettingsPage: React.FC = () => {
                     onChange={(e) =>
                       setNotifications({ ...notifications, serverOfflineAlerts: e.target.checked })
                     }
-                    className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-0.5"
+                    className="w-5 h-5 text-primary-600 border-gray-300 dark:border-gray-600 rounded focus:ring-primary-500 mt-0.5"
                   />
                   <div>
-                    <label htmlFor="serverOfflineAlerts" className="block text-sm font-medium text-gray-900 dark:text-white">
+                    <label htmlFor="serverOfflineAlerts" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
                       Server offline alerts
                     </label>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
                       Receive email and in-app notifications.
                     </p>
                   </div>
@@ -275,13 +264,13 @@ export const SettingsPage: React.FC = () => {
                     onChange={(e) =>
                       setNotifications({ ...notifications, maintenanceUpdates: e.target.checked })
                     }
-                    className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-0.5"
+                    className="w-5 h-5 text-primary-600 border-gray-300 dark:border-gray-600 rounded focus:ring-primary-500 mt-0.5"
                   />
                   <div>
-                    <label htmlFor="maintenanceUpdates" className="block text-sm font-medium text-gray-900 dark:text-white">
+                    <label htmlFor="maintenanceUpdates" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
                       Maintenance updates
                     </label>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
                       Receive email and in-app notifications.
                     </p>
                   </div>
@@ -296,13 +285,13 @@ export const SettingsPage: React.FC = () => {
                     onChange={(e) =>
                       setNotifications({ ...notifications, successfulDeployments: e.target.checked })
                     }
-                    className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mt-0.5"
+                    className="w-5 h-5 text-primary-600 border-gray-300 dark:border-gray-600 rounded focus:ring-primary-500 mt-0.5"
                   />
                   <div>
-                    <label htmlFor="successfulDeployments" className="block text-sm font-medium text-gray-900 dark:text-white">
+                    <label htmlFor="successfulDeployments" className="block text-sm font-medium text-gray-700 dark:text-gray-200">
                       Successful deployments
                     </label>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
                       Receive email and in-app notifications.
                     </p>
                   </div>
@@ -313,7 +302,7 @@ export const SettingsPage: React.FC = () => {
               <div className="pt-4">
                 <button
                   onClick={handleSaveNotifications}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                  className="px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg flex items-center gap-2"
                 >
                   <Save className="w-4 h-4" />
                   Save Preferences

@@ -196,12 +196,12 @@ def signup():
                 'message': 'Password must be at least 8 characters'
             })), 400
         
-        # Register user with viewer role
+        # Register user with user role (default for self-registration)
         user = auth_service.register_user(
             username=username,
             email=email,
             password=password,
-            role='viewer'  # Default role for self-registration
+            role='user'  # Default role for self-registration
         )
         
         return jsonify({

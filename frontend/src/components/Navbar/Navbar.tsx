@@ -36,19 +36,19 @@ export const Navbar: React.FC = () => {
   };
 
   return (
-    <nav className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between">
+    <nav className="bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-glow px-4 py-3 flex items-center justify-between">
       {/* Left side - Menu button */}
       <button
         onClick={toggleSidebar}
-        className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+        className="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 dark:hover:bg-gray-700 transition-colors"
         aria-label="Toggle sidebar"
       >
-        <Menu className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+        <Menu className="h-5 w-5 text-gray-700 dark:text-gray-300" />
       </button>
 
       {/* Center - Title */}
-      <h1 className="text-xl font-semibold text-gray-800 dark:text-white">
-        Infrastructure Automation Platform
+      <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+        Infra Ansible Automation
       </h1>
 
       {/* Right side - User info and logout */}
@@ -58,29 +58,29 @@ export const Navbar: React.FC = () => {
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setShowProfileDropdown(!showProfileDropdown)}
-              className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              className="flex items-center gap-2 p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
             >
-              <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
-                <span className="text-primary-600 dark:text-primary-300 font-semibold text-sm">
+              <div className="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center shadow-md">
+                <span className="text-white font-semibold text-sm">
                   {user.username.charAt(0).toUpperCase()}
                 </span>
               </div>
               <div className="text-left hidden md:block">
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-200">{user.username}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{user.role}</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">{user.username}</p>
+                <p className="text-xs text-gray-600 dark:text-gray-400 capitalize">{user.role}</p>
               </div>
-              <ChevronDown className={`h-4 w-4 text-gray-600 dark:text-gray-300 transition-transform ${showProfileDropdown ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`h-4 w-4 text-gray-600 dark:text-gray-400 transition-transform ${showProfileDropdown ? 'rotate-180' : ''}`} />
             </button>
 
             {/* Dropdown Menu */}
             {showProfileDropdown && (
-              <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-2 z-50">
+              <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-glow-lg border border-gray-200 dark:border-gray-700 py-2 z-50">
                 {/* User Info */}
-                <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 dark:border-gray-700">
                   <p className="text-sm font-semibold text-gray-900 dark:text-white">{user.username}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-100 dark:bg-primary-900 text-primary-800 dark:text-primary-200 capitalize">
+                  <p className="text-xs text-gray-600 dark:text-gray-400">{user.email}</p>
+                  <p className="text-xs text-gray-600 mt-1">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-500 text-white capitalize">
                       {user.role}
                     </span>
                   </p>
@@ -96,7 +96,7 @@ export const Navbar: React.FC = () => {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600 dark:text-gray-400">Status:</span>
-                      <span className={`font-medium ${user.is_active ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                      <span className={`font-medium ${user.is_active ? 'text-success-600' : 'text-error-600'}`}>
                         {user.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </div>
@@ -113,7 +113,7 @@ export const Navbar: React.FC = () => {
                 <div className="border-t border-gray-200 dark:border-gray-700 mt-2 pt-2 px-2">
                   <button
                     onClick={handleLogout}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-error-600 dark:text-error-400 hover:bg-error-50 dark:hover:bg-error-900/20 rounded-md transition-colors"
                   >
                     <LogOut className="h-4 w-4" />
                     Logout

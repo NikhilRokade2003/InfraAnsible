@@ -5,11 +5,17 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, RefreshCw, XCircle, Download, RotateCw } from 'lucide-react';
+import { ArrowLeft, RefreshCw, XCircle, Download, RotateCw, X, Eye, ChevronDown, ChevronUp } from 'lucide-react';
 import { jobsApi } from '../../api/api';
 import { useUIStore } from '../../store/uiStore';
 import { StatusBadge } from '../../components/StatusBadge/StatusBadge';
 import type { Job, JobLog } from '../../types';
+
+interface ParsedResult {
+  serverName: string;
+  address: string;
+  data: Record<string, string>;
+}
 
 export const JobDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -21,6 +27,8 @@ export const JobDetailsPage: React.FC = () => {
   const [logs, setLogs] = useState<JobLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [showResults, setShowResults] = useState(false);
+  const [parsedResults, setParsedResults] = useState<ParsedResult[]>([]);
 
   useEffect(() => {
     if (id) {
@@ -45,6 +53,63 @@ export const JobDetailsPage: React.FC = () => {
     // Auto-scroll to bottom when new logs arrive
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [logs]);
+
+  useEffect(() => {
+    // Parse results whenever logs change
+    if (logs.length > 0) {
+      parseConsoleOutput();
+    }
+  }, [logs]);
+
+  const parseConsoleOutput = () => {
+    try {
+      const fullOutput = logs.map(log => log.content).join('\n');
+      const results: ParsedResult[] = [];
+      
+      // Find all task output sections that contain "msg"
+      const msgPattern = /ok:\s*\[([^\]]+)\]\s*=>\s*\{[^}]*"msg":\s*\[(.*?)\]/gs;
+      let match;
+      
+      while ((match = msgPattern.exec(fullOutput)) !== null) {
+        const serverName = match[1].trim();
+        const msgContent = match[2];
+        
+        // Parse the msg array content
+        const lines = msgContent.split(',').map(line => {
+          // Remove quotes and trim
+          return line.replace(/["\[\]]/g, '').trim();
+        });
+        
+        const data: Record<string, string> = {};
+        let address = '';
+        
+        lines.forEach(line => {
+          // Split by first colon to get key-value pairs
+          const colonIndex = line.indexOf(':');
+          if (colonIndex > 0) {
+            const key = line.substring(0, colonIndex).trim();
+            const value = line.substring(colonIndex + 1).trim();
+            data[key] = value;
+            
+            // Check if this is an IP address field
+            if (key.toLowerCase().includes('ipv4') || key.toLowerCase().includes('ip')) {
+              address = value;
+            }
+          }
+        });
+        
+        results.push({
+          serverName,
+          address: address || 'N/A',
+          data
+        });
+      }
+      
+      setParsedResults(results);
+    } catch (error) {
+      console.error('Error parsing console output:', error);
+    }
+  };
 
   const loadJobDetails = async () => {
     try {
@@ -81,7 +146,7 @@ export const JobDetailsPage: React.FC = () => {
     try {
       await jobsApi.cancel(job.id);
       addNotification('success', 'Job cancelled successfully');
-      loadJobDetails();
+      navigate('/jobs');
     } catch (error: any) {
       addNotification('error', error.response?.data?.error || 'Failed to cancel job');
     }
@@ -129,17 +194,17 @@ export const JobDetailsPage: React.FC = () => {
 
   const getLogLevelColor = (level: string) => {
     const colors = {
-      WARN: 'text-yellow-400',
-      ERROR: 'text-red-400',
-      INFO: 'text-blue-400',
+      WARN: 'text-yellow-600',
+      ERROR: 'text-error-600',
+      INFO: 'text-primary-600',
     };
-    return colors[level as keyof typeof colors] || 'text-gray-400';
+    return colors[level as keyof typeof colors] || 'text-gray-600';
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-gray-500">Loading job details...</div>
+        <div className="text-gray-700">Loading job details...</div>
       </div>
     );
   }
@@ -147,7 +212,7 @@ export const JobDetailsPage: React.FC = () => {
   if (!job) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-gray-500">Job not found</div>
+        <div className="text-gray-700">Job not found</div>
       </div>
     );
   }
@@ -159,41 +224,54 @@ export const JobDetailsPage: React.FC = () => {
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate('/jobs')}
-            className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="p-2 rounded-md hover:bg-gray-100 transition-colors"
           >
-            <ArrowLeft className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+            <ArrowLeft className="h-5 w-5 text-gray-600" />
           </button>
           <div>
             <h2 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
               Job #{job.job_id}
               <StatusBadge status={job.status} />
             </h2>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">Playbook: {job.playbook?.name || 'N/A'}</p>
+            <p className="text-gray-600 mt-1">Playbook: {job.playbook?.name || 'N/A'}</p>
           </div>
         </div>
-        <button
-          onClick={handleRerun}
-          className="flex items-center gap-2 px-4 py-2 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-        >
-          <RotateCw className="h-4 w-4" />
-          Re-run
-        </button>
+        <div className="flex items-center gap-3">
+          {/* Cancel Button - Show for pending, running, and failed jobs */}
+          {(job.status === 'pending' || job.status === 'running' || job.status === 'failed') && (
+            <button
+              onClick={handleCancel}
+              className="flex items-center gap-2 px-4 py-2 text-white bg-error-500 border border-error-500 rounded-lg hover:bg-error-600 transition-colors shadow-glow"
+            >
+              <X className="h-4 w-4" />
+              Cancel
+            </button>
+          )}
+          {/* Re-run Button */}
+          <button
+            onClick={handleRerun}
+            className="flex items-center gap-2 px-4 py-2 text-gray-700 bg-gray-200 border border-gray-300 rounded-lg hover:bg-gray-300 transition-colors shadow-glow"
+          >
+            <RotateCw className="h-4 w-4" />
+            Re-run
+          </button>
+        </div>
       </div>
 
       {/* Main Content - Two Column Layout */}
       <div className="grid grid-cols-12 gap-6">
         {/* Left Column - Execution Details */}
         <div className="col-span-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <div className="bg-white border border-primary-200 shadow-glow rounded-lg shadow-lg p-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Execution Details</h3>
             
             {/* Started At */}
             <div className="mb-6">
-              <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 text-xs uppercase mb-2">
-                <span className="text-gray-400">🕐</span>
+              <div className="flex items-center gap-2 text-gray-600 text-xs uppercase mb-2">
+                <span className="text-gray-600">🕐</span>
                 Started At
               </div>
-              <p className="text-sm font-medium text-gray-900 dark:text-white">
+              <p className="text-sm font-medium text-gray-900">
                 {job.started_at 
                   ? new Date(job.started_at).toLocaleDateString('en-US', { 
                       month: '2-digit', 
@@ -212,42 +290,56 @@ export const JobDetailsPage: React.FC = () => {
 
             {/* Targets */}
             <div>
-              <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 text-xs uppercase mb-2">
-                <span className="text-gray-400 dark:text-gray-500">📋</span>
+              <div className="flex items-center gap-2 text-gray-600 text-xs uppercase mb-2">
+                <span className="text-gray-600">📋</span>
                 Targets
               </div>
               <div className="flex items-center gap-2">
                 {[1, 2, 4].map((num) => (
                   <span
                     key={num}
-                    className="w-8 h-8 flex items-center justify-center bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded text-sm font-medium"
+                    className="w-8 h-8 flex items-center justify-center bg-gray-100 text-gray-700 rounded text-sm font-medium border border-gray-300"
                   >
                     {num}
                   </span>
                 ))}
               </div>
             </div>
+
+            {/* View Result Button */}
+            {parsedResults.length > 0 && (
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <button
+                  onClick={() => setShowResults(!showResults)}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2 text-white bg-primary-500 rounded-lg hover:bg-primary-600 transition-colors shadow-glow"
+                >
+                  <Eye className="h-4 w-4" />
+                  {showResults ? 'Hide Result' : 'View Result'}
+                  {showResults ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Right Column - Console Output */}
         <div className="col-span-8">
-          <div className="bg-gray-900 rounded-lg shadow overflow-hidden">
+          <div className="bg-white border border-primary-200 shadow-glow rounded-lg shadow-lg overflow-hidden">
             {/* Console Header */}
-            <div className="flex items-center justify-between px-4 py-3 bg-gray-800 border-b border-gray-700">
+            <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
               <div className="flex items-center gap-2">
-                <span className="text-gray-400 text-sm font-mono">Console Output</span>
+                <span className="text-gray-700 text-sm font-mono font-semibold">Console Output</span>
               </div>
-              <div className="flex items-center gap-2 text-blue-400 text-sm">
+              <div className="flex items-center gap-2 text-primary-600 text-sm">
                 <RefreshCw className={`h-4 w-4 ${autoRefresh ? 'animate-spin' : ''}`} />
                 <span>{logs.length} lines</span>
               </div>
             </div>
 
             {/* Console Content */}
-            <div className="p-4 h-[600px] overflow-y-auto font-mono text-sm">
+            <div className="p-4 h-[600px] overflow-y-auto font-mono text-sm bg-gray-50">
               {logs.length === 0 ? (
-                <div className="text-gray-500 text-center py-8">
+                <div className="text-gray-600 text-center py-8">
                   No logs available yet...
                 </div>
               ) : (
@@ -256,19 +348,19 @@ export const JobDetailsPage: React.FC = () => {
                   const levelColor = getLogLevelColor(logLevel);
                   
                   return (
-                    <div key={index} className="flex items-start gap-3 mb-1 hover:bg-gray-800 px-2 py-1 rounded">
-                      <span className="text-gray-500 text-xs flex-shrink-0 w-24">
+                    <div key={index} className="flex items-start gap-3 mb-1 hover:bg-gray-100 px-2 py-1 rounded">
+                      <span className="text-gray-600 text-xs flex-shrink-0 w-24">
                         {new Date(log.timestamp).toLocaleTimeString('en-US', {
                           hour: '2-digit',
                           minute: '2-digit',
                           second: '2-digit',
-                          hour12: false
+                          hour12: true
                         })}
                       </span>
                       <span className={`${levelColor} font-bold text-xs uppercase flex-shrink-0 w-12`}>
                         {logLevel}
                       </span>
-                      <span className="text-gray-300 flex-1 break-words">
+                      <span className="text-gray-900 flex-1 break-words">
                         {log.content}
                       </span>
                     </div>
@@ -280,6 +372,57 @@ export const JobDetailsPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Parsed Results Table */}
+      {showResults && parsedResults.length > 0 && (
+        <div className="bg-white border border-primary-200 shadow-glow rounded-lg shadow-lg p-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Execution Results</h3>
+          
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                    Sr. No
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                    Server Name
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                    Address
+                  </th>
+                  {/* Dynamic columns based on first result */}
+                  {parsedResults.length > 0 && Object.keys(parsedResults[0].data).map((key) => (
+                    <th key={key} className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                      {key}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {parsedResults.map((result, index) => (
+                  <tr key={index} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {index + 1}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {result.serverName}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      {result.address}
+                    </td>
+                    {Object.values(result.data).map((value, idx) => (
+                      <td key={idx} className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        {value}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

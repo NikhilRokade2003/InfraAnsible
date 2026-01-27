@@ -117,8 +117,8 @@ def create_job():
         current_user_id = get_jwt_identity()
         current_user = auth_service.get_current_user(current_user_id)
         
-        # Check permission
-        if not auth_service.check_permission(current_user, 'operator'):
+        # Check permission - allow user, admin, and super_admin to create jobs
+        if not auth_service.check_permission(current_user, 'user'):
             return jsonify(error_schema.dump({
                 'error': 'forbidden',
                 'message': 'Insufficient permissions to create jobs'
@@ -211,7 +211,7 @@ def get_job_logs(job_id):
 @jwt_required()
 def cancel_job(job_id):
     """
-    Cancel a running or pending job (operator or admin only)
+    Cancel a running, pending, or failed job (all users can cancel)
     
     Returns:
         Updated job
@@ -221,12 +221,8 @@ def cancel_job(job_id):
         current_user_id = get_jwt_identity()
         current_user = auth_service.get_current_user(current_user_id)
         
-        # Check permission
-        if not auth_service.check_permission(current_user, 'operator'):
-            return jsonify(error_schema.dump({
-                'error': 'forbidden',
-                'message': 'Insufficient permissions to cancel jobs'
-            })), 403
+        # All authenticated users can cancel jobs
+        # No permission check required
         
         # Cancel job
         job = job_service.cancel_job(job_id, current_user_id)

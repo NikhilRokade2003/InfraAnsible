@@ -5,7 +5,7 @@
 
 // ===== User & Authentication Types =====
 
-export type UserRole = 'admin' | 'operator' | 'viewer';
+export type UserRole = 'super_admin' | 'admin' | 'user';
 
 export interface User {
   id: number;

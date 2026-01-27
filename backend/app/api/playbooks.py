@@ -119,6 +119,65 @@ def get_playbook_content(playbook_id):
         })), 500
 
 
+@playbooks_bp.route('/<int:playbook_id>/content', methods=['PUT'])
+@jwt_required()
+def update_playbook_content(playbook_id):
+    """
+    Update playbook file content (admin only)
+    
+    Request Body:
+        content: str (required) - New YAML content
+    
+    Returns:
+        Updated playbook
+    """
+    try:
+        # Get current user
+        current_user_id = get_jwt_identity()
+        current_user = auth_service.get_current_user(current_user_id)
+        
+        # Check permission - admin only
+        if current_user.role != 'admin':
+            return jsonify(error_schema.dump({
+                'error': 'forbidden',
+                'message': 'Only administrators can edit playbook content'
+            })), 403
+        
+        # Get content from request
+        data = request.get_json()
+        if not data or 'content' not in data:
+            return jsonify(error_schema.dump({
+                'error': 'validation_error',
+                'message': 'Content is required'
+            })), 400
+        
+        content = data['content']
+        
+        # Update playbook content
+        playbook = playbook_service.update_playbook_content(
+            playbook_id, 
+            content, 
+            current_user_id
+        )
+        
+        return jsonify({
+            'message': 'Playbook content updated successfully',
+            'playbook': playbook_schema.dump(playbook)
+        }), 200
+    
+    except ValueError as err:
+        return jsonify(error_schema.dump({
+            'error': 'update_failed',
+            'message': str(err)
+        })), 400
+    
+    except Exception as err:
+        return jsonify(error_schema.dump({
+            'error': 'internal_error',
+            'message': f'An error occurred while updating playbook content: {str(err)}'
+        })), 500
+
+
 @playbooks_bp.route('/upload', methods=['POST'])
 @jwt_required()
 def upload_playbook():

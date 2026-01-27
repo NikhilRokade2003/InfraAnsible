@@ -5,13 +5,20 @@
 
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Server, FileCode, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Server, FileCode, Clock, CheckCircle, XCircle, AlertCircle, Plus } from 'lucide-react';
 import { jobsApi, serversApi, playbooksApi } from '../../api/api';
 import { mockApi } from '../../api/mockApi';
-import type { JobStatistics, Job } from '../../types';
+import type { JobStatistics, Job, Server as ServerType } from '../../types';
 import { StatusBadge } from '../../components/StatusBadge/StatusBadge';
+import { DynamicChart, ChartType, DataMetric } from '../../components/DynamicChart/DynamicChart';
 
 const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
+
+interface ChartConfig {
+  id: string;
+  metric: DataMetric;
+  chartType: ChartType;
+}
 
 export const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<JobStatistics | null>(null);
@@ -19,6 +26,13 @@ export const Dashboard: React.FC = () => {
   const [serverCount, setServerCount] = useState(0);
   const [playbookCount, setPlaybookCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [servers, setServers] = useState<ServerType[]>([]);
+  
+  // Chart management state
+  const [charts, setCharts] = useState<ChartConfig[]>([
+    { id: '1', metric: 'job-status', chartType: 'bar' },
+    { id: '2', metric: 'job-success-rate', chartType: 'pie' },
+  ]);
 
   useEffect(() => {
     loadDashboardData();
@@ -34,23 +48,108 @@ export const Dashboard: React.FC = () => {
         playbooks: playbooksApi,
       };
       
-      const [jobStats, jobsResponse, serversResponse, playbooksResponse] = await Promise.all([
+      const [jobStats, jobsResponse, serversResponse, playbooksResponse, allServers] = await Promise.all([
         api.jobs.getStatistics(),
         api.jobs.list({ page: 1, per_page: 10 }), // Changed from 5 to 10
         api.servers.list({ page: 1, per_page: 1 }),
         api.playbooks.list({ page: 1, per_page: 1 }),
+        api.servers.list({ page: 1, per_page: 100 }), // Fetch more servers for chart data
       ]);
 
       setStats(jobStats);
       setRecentJobs(jobsResponse.items);
-      setServerCount(serversResponse.total);
-      setPlaybookCount(playbooksResponse.total);
+      setServerCount(serversResponse.pagination?.total || 0);
+      setPlaybookCount(playbooksResponse.pagination?.total || 0);
+      setServers(allServers.items || []);
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  // Prepare chart data based on current state
+  const prepareChartData = () => {
+    if (!stats) return {};
+
+    // Job Status Data
+    const jobStatusData = [
+      { name: 'Pending', value: stats.pending || 0 },
+      { name: 'Running', value: stats.running || 0 },
+      { name: 'Success', value: stats.success || 0 },
+      { name: 'Failed', value: stats.failed || 0 },
+      { name: 'Cancelled', value: stats.cancelled || 0 },
+    ];
+
+    // Job Success Rate
+    const totalJobs = (stats.success || 0) + (stats.failed || 0);
+    const jobSuccessRateData = [
+      { name: 'Success', value: stats.success || 0 },
+      { name: 'Failed', value: stats.failed || 0 },
+    ];
+
+    // Server OS Distribution
+    const osCount: Record<string, number> = {};
+    servers.forEach((server) => {
+      const os = server.os_type || 'Unknown';
+      osCount[os] = (osCount[os] || 0) + 1;
+    });
+    const serverOsData = Object.entries(osCount).map(([name, value]) => ({
+      name,
+      value,
+    }));
+
+    // Server Status
+    const activeCount = servers.filter((s) => s.is_active).length;
+    const inactiveCount = servers.length - activeCount;
+    const serverStatusData = [
+      { name: 'Active', value: activeCount },
+      { name: 'Inactive', value: inactiveCount },
+    ];
+
+    // Server Environment
+    const envCount: Record<string, number> = {};
+    servers.forEach((server) => {
+      const env = server.environment || 'unassigned';
+      envCount[env] = (envCount[env] || 0) + 1;
+    });
+    const serverEnvironmentData = Object.entries(envCount).map(([name, value]) => ({
+      name,
+      value,
+    }));
+
+    return {
+      'job-status': jobStatusData,
+      'job-success-rate': jobSuccessRateData,
+      'server-os-distribution': serverOsData,
+      'server-status': serverStatusData,
+      'server-environment': serverEnvironmentData,
+    };
+  };
+
+  // Chart management functions
+  const handleAddChart = () => {
+    const newChart: ChartConfig = {
+      id: Date.now().toString(),
+      metric: 'job-status',
+      chartType: 'bar',
+    };
+    setCharts([...charts, newChart]);
+  };
+
+  const handleRemoveChart = (id: string) => {
+    setCharts(charts.filter((chart) => chart.id !== id));
+  };
+
+  const handleMetricChange = (id: string, metric: DataMetric) => {
+    setCharts(charts.map((chart) => (chart.id === id ? { ...chart, metric } : chart)));
+  };
+
+  const handleChartTypeChange = (id: string, chartType: ChartType) => {
+    setCharts(charts.map((chart) => (chart.id === id ? { ...chart, chartType } : chart)));
+  };
+
+  const chartData = prepareChartData();
 
   if (loading) {
     return (
@@ -65,73 +164,73 @@ export const Dashboard: React.FC = () => {
       {/* Header */}
       <div>
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h2>
-        <p className="text-gray-600 dark:text-gray-400 mt-1">Overview of your infrastructure automation platform</p>
+        <p className="text-gray-600 mt-1">Overview of your infrastructure automation platform</p>
       </div>
 
       {/* Stats cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Servers */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div className="bg-white border border-primary-200 shadow-glow rounded-lg shadow-lg p-6 transition-all hover:shadow-glow-lg">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Servers</p>
+              <p className="text-sm font-medium text-gray-600">Servers</p>
               <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">{serverCount}</p>
             </div>
             <div className="p-3 bg-primary-100 rounded-lg">
               <Server className="h-6 w-6 text-primary-600" />
             </div>
           </div>
-          <Link to="/servers" className="text-sm text-primary-600 hover:text-primary-700 mt-4 inline-block">
+          <Link to="/servers" className="text-sm text-primary-600 hover:text-primary-700 mt-4 inline-block font-medium">
             View all servers →
           </Link>
         </div>
 
         {/* Playbooks */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div className="bg-white border border-primary-200 shadow-glow rounded-lg shadow-lg p-6 transition-all hover:shadow-glow-lg">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Playbooks</p>
+              <p className="text-sm font-medium text-gray-600">Playbooks</p>
               <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">{playbookCount}</p>
             </div>
-            <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-lg">
-              <FileCode className="h-6 w-6 text-blue-600 dark:text-blue-300" />
+            <div className="p-3 bg-info-100 rounded-lg">
+              <FileCode className="h-6 w-6 text-info-600" />
             </div>
           </div>
-          <Link to="/playbooks" className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 mt-4 inline-block">
+          <Link to="/playbooks" className="text-sm text-primary-600 hover:text-primary-700 mt-4 inline-block font-medium">
             View all playbooks →
           </Link>
         </div>
 
         {/* Total jobs */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div className="bg-white border border-primary-200 shadow-glow rounded-lg shadow-lg p-6 transition-all hover:shadow-glow-lg">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Jobs</p>
+              <p className="text-sm font-medium text-gray-600">Total Jobs</p>
               <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">{stats?.total || 0}</p>
             </div>
-            <div className="p-3 bg-purple-100 dark:bg-purple-900 rounded-lg">
-              <Clock className="h-6 w-6 text-purple-600 dark:text-purple-300" />
+            <div className="p-3 bg-primary-100 rounded-lg">
+              <Clock className="h-6 w-6 text-primary-600" />
             </div>
           </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
+          <p className="text-sm text-gray-600 mt-4">
             {stats?.running || 0} currently running
           </p>
         </div>
 
         {/* Success rate */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div className="bg-white border border-primary-200 shadow-glow rounded-lg shadow-lg p-6 transition-all hover:shadow-glow-lg">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Success Rate</p>
-              <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">
+              <p className="text-sm font-medium text-gray-600">Success Rate</p>
+              <p className="text-3xl font-bold text-gray-900 mt-2">
                 {stats?.success_rate.toFixed(1) || 0}%
               </p>
             </div>
-            <div className="p-3 bg-green-100 dark:bg-green-900 rounded-lg">
-              <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-300" />
+            <div className="p-3 bg-success-100 rounded-lg">
+              <CheckCircle className="h-6 w-6 text-success-600" />
             </div>
           </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
+          <p className="text-sm text-gray-600 mt-4">
             {stats?.success || 0} successful jobs
           </p>
         </div>
@@ -139,106 +238,157 @@ export const Dashboard: React.FC = () => {
 
       {/* Job status breakdown */}
       {stats && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div className="bg-white border border-primary-200 shadow-glow rounded-lg shadow-lg p-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Job Status Overview</h3>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div className="text-center">
               <div className="flex items-center justify-center mb-2">
-                <AlertCircle className="h-5 w-5 text-gray-500 dark:text-gray-400 mr-2" />
-                <span className="text-2xl font-bold text-gray-700 dark:text-gray-300">{stats.pending}</span>
+                <AlertCircle className="h-5 w-5 text-gray-500 mr-2" />
+                <span className="text-2xl font-bold text-gray-700">{stats.pending}</span>
               </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Pending</p>
+              <p className="text-sm text-gray-600">Pending</p>
             </div>
             <div className="text-center">
               <div className="flex items-center justify-center mb-2">
-                <Clock className="h-5 w-5 text-blue-500 dark:text-blue-400 mr-2" />
-                <span className="text-2xl font-bold text-blue-700 dark:text-blue-300">{stats.running}</span>
+                <Clock className="h-5 w-5 text-info-500 mr-2" />
+                <span className="text-2xl font-bold text-info-700">{stats.running}</span>
               </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Running</p>
+              <p className="text-sm text-gray-600">Running</p>
             </div>
             <div className="text-center">
               <div className="flex items-center justify-center mb-2">
-                <CheckCircle className="h-5 w-5 text-green-500 dark:text-green-400 mr-2" />
-                <span className="text-2xl font-bold text-green-700 dark:text-green-300">{stats.success}</span>
+                <CheckCircle className="h-5 w-5 text-success-500 mr-2" />
+                <span className="text-2xl font-bold text-success-700">{stats.success}</span>
               </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Success</p>
+              <p className="text-sm text-gray-600">Success</p>
             </div>
             <div className="text-center">
               <div className="flex items-center justify-center mb-2">
-                <XCircle className="h-5 w-5 text-red-500 dark:text-red-400 mr-2" />
-                <span className="text-2xl font-bold text-red-700 dark:text-red-300">{stats.failed}</span>
+                <XCircle className="h-5 w-5 text-error-500 mr-2" />
+                <span className="text-2xl font-bold text-error-700">{stats.failed}</span>
               </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Failed</p>
+              <p className="text-sm text-gray-600">Failed</p>
             </div>
             <div className="text-center">
               <div className="flex items-center justify-center mb-2">
-                <AlertCircle className="h-5 w-5 text-yellow-500 dark:text-yellow-400 mr-2" />
-                <span className="text-2xl font-bold text-yellow-700 dark:text-yellow-300">{stats.cancelled}</span>
+                <AlertCircle className="h-5 w-5 text-warning-500 mr-2" />
+                <span className="text-2xl font-bold text-warning-700">{stats.cancelled}</span>
               </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Cancelled</p>
+              <p className="text-sm text-gray-600">Cancelled</p>
             </div>
           </div>
         </div>
       )}
 
+      {/* Analytics Charts Section */}
+      <div className="space-y-6">
+        {/* Section Header with Add Chart Button */}
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Analytics & Insights</h2>
+          <button
+            onClick={handleAddChart}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors shadow-sm"
+          >
+            <Plus className="h-4 w-4" />
+            Add Chart
+          </button>
+        </div>
+
+        {/* Charts Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {charts.map((chart) => (
+            <DynamicChart
+              key={chart.id}
+              chartId={chart.id}
+              initialMetric={chart.metric}
+              initialChartType={chart.chartType}
+              data={chartData}
+              onRemove={handleRemoveChart}
+              onMetricChange={handleMetricChange}
+              onChartTypeChange={handleChartTypeChange}
+            />
+          ))}
+        </div>
+
+        {charts.length === 0 && (
+          <div className="bg-white border border-primary-200 shadow-glow rounded-lg shadow-lg p-12 text-center">
+            <p className="text-gray-500 mb-4">No charts added yet</p>
+            <button
+              onClick={handleAddChart}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors shadow-sm"
+            >
+              <Plus className="h-4 w-4" />
+              Add Your First Chart
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Recent jobs */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="bg-white border border-primary-200 shadow-glow rounded-lg shadow-lg">
+        <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Jobs</h3>
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-700">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Job ID
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Playbook
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Server
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Created
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="bg-white divide-y divide-gray-200">
               {recentJobs.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                  <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500">
                     No jobs found
                   </td>
                 </tr>
               ) : (
                 recentJobs.map((job) => (
-                  <tr key={job.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                  <tr key={job.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {job.job_id.substring(0, 8)}...
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                       {job.playbook?.name || 'N/A'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                       {job.server?.hostname || 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <StatusBadge status={job.status} />
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {new Date(job.created_at).toLocaleString()}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                      {new Date(job.created_at).toLocaleString('en-US', {
+                        month: 'numeric',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true
+                      })}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <Link
                         to={`/jobs/${job.id}`}
-                        className="text-primary-600 dark:text-primary-400 hover:text-primary-900 dark:hover:text-primary-300"
+                        className="text-primary-600 hover:text-primary-700 font-medium"
                       >
                         View details
                       </Link>

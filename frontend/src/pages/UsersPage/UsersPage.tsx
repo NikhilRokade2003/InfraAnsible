@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Shield, User as UserIcon } from 'lucide-react';
 import { usersApi } from '../../api/api';
+import { useAuthStore } from '../../store/authStore';
 import type { User } from '../../types';
 
 export const UsersPage: React.FC = () => {
+  const { user: currentUser } = useAuthStore();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const isSuperAdmin = currentUser?.role === 'super_admin';
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'super_admin';
 
   useEffect(() => {
     loadUsers();
@@ -39,22 +44,34 @@ export const UsersPage: React.FC = () => {
 
   const getRoleBadgeColor = (role: string) => {
     switch (role.toLowerCase()) {
+      case 'super_admin':
+        return 'bg-red-100 text-red-700';
       case 'admin':
         return 'bg-purple-100 text-purple-700';
-      case 'operator':
+      case 'user':
         return 'bg-blue-100 text-blue-700';
-      case 'viewer':
-        return 'bg-gray-100 text-gray-700';
       default:
         return 'bg-gray-100 text-gray-700';
     }
   };
 
+  const canDeleteUser = (targetUser: User) => {
+    // Only super_admin can delete users
+    if (!isSuperAdmin) return false;
+    
+    // Cannot delete yourself
+    if (targetUser.id === currentUser?.id) return false;
+    
+    return true;
+  };
+
   const getRoleIcon = (role: string) => {
     switch (role.toLowerCase()) {
+      case 'super_admin':
+        return <Shield className="h-4 w-4" />;
       case 'admin':
         return <Shield className="w-3 h-3 inline mr-1" />;
-      case 'operator':
+      case 'user':
         return <UserIcon className="w-3 h-3 inline mr-1" />;
       default:
         return <UserIcon className="w-3 h-3 inline mr-1" />;
@@ -81,7 +98,7 @@ export const UsersPage: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-400">Loading users...</div>
+        <div className="text-gray-600">Loading users...</div>
       </div>
     );
   }
@@ -91,47 +108,47 @@ export const UsersPage: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-semibold dark:text-white">User Management</h1>
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">User Management</h1>
         </div>
-        <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
+        <button className="px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 flex items-center gap-2 shadow-glow-sm hover:shadow-glow">
           <Plus className="w-4 h-4" />
           Invite User
         </button>
       </div>
 
       {/* Users Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+      <div className="bg-white border border-primary-200 shadow-glow rounded-lg shadow-lg">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-gray-200 dark:border-gray-700">
-              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+            <tr className="border-b border-gray-200 bg-gray-50">
+              <th className="text-left px-6 py-3 text-xs font-medium text-gray-700 uppercase tracking-wider">
                 User
               </th>
-              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              <th className="text-left px-6 py-3 text-xs font-medium text-gray-700 uppercase tracking-wider">
                 Role
               </th>
-              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              <th className="text-left px-6 py-3 text-xs font-medium text-gray-700 uppercase tracking-wider">
                 Last Login
               </th>
-              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+              <th className="text-left px-6 py-3 text-xs font-medium text-gray-700 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+          <tbody className="divide-y divide-gray-200">
             {users.map((user) => (
-              <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+              <tr key={user.id} className="hover:bg-gray-50">
                 {/* User Info */}
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                      <span className="text-blue-600 dark:text-blue-400 font-semibold text-sm">
+                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                      <span className="text-blue-600 font-semibold text-sm">
                         {getInitials(user.username)}
                       </span>
                     </div>
                     <div>
-                      <div className="font-medium text-gray-900 dark:text-white">{user.username}</div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">{user.email}</div>
+                      <div className="font-medium text-gray-900">{user.username}</div>
+                      <div className="text-sm text-gray-600">{user.email}</div>
                     </div>
                   </div>
                 </td>
@@ -145,26 +162,30 @@ export const UsersPage: React.FC = () => {
                 </td>
 
                 {/* Last Login */}
-                <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
+                <td className="px-6 py-4 text-sm text-gray-700">
                   {formatLastLogin(user.last_login)}
                 </td>
 
                 {/* Actions */}
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
-                    <button
-                      className="text-gray-400 dark:text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                      title="Edit user"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(user.id, user.username)}
-                      className="text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                      title="Delete user"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {isAdmin && (
+                      <button
+                        className="text-gray-600 hover:text-primary-600 transition-colors"
+                        title="Edit user"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                    )}
+                    {canDeleteUser(user) && (
+                      <button
+                        onClick={() => handleDelete(user.id, user.username)}
+                        className="text-gray-600 hover:text-error-600 transition-colors"
+                        title="Delete user"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -173,7 +194,7 @@ export const UsersPage: React.FC = () => {
         </table>
 
         {users.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-gray-600">
             No users found
           </div>
         )}

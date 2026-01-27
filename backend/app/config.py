@@ -41,6 +41,7 @@ class Config:
     UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', '/var/lib/infra-automation/playbooks')
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
     ALLOWED_EXTENSIONS = {'yml', 'yaml'}
+    MAX_UPLOAD_SIZE = 500 * 1024  # 500 KB in bytes for YAML playbooks
     
     # Ansible Runner Configuration
     ANSIBLE_RUNNER_DIR = os.getenv('ANSIBLE_RUNNER_DIR', '/var/lib/infra-automation/ansible-runner')

@@ -319,9 +319,15 @@ def refresh_all_metrics():
     try:
         # Check permissions
         current_user_id = get_jwt_identity()
-        current_user = auth_service.get_user_by_id(int(current_user_id))
+        current_user = auth_service.get_current_user(current_user_id)
         
-        if not auth_service.check_permission(current_user, 'operator'):
+        if not current_user:
+            return jsonify(error_schema.dump({
+                'error': 'unauthorized',
+                'message': 'User not found'
+            })), 401
+        
+        if not auth_service.check_permission(current_user, 'admin'):
             return jsonify(error_schema.dump({
                 'error': 'forbidden',
                 'message': 'Insufficient permissions'

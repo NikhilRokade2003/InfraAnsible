@@ -35,9 +35,27 @@ class PlaybookService:
         if existing:
             raise ValueError(f"Playbook with name '{name}' already exists")
         
-        # Validate file
-        if not file_obj or not PlaybookService._allowed_file(file_obj.filename):
+        # Validate file exists
+        if not file_obj:
+            raise ValueError("No file provided")
+        
+        # Validate file type
+        if not PlaybookService._allowed_file(file_obj.filename):
             raise ValueError("Invalid file type. Only .yml and .yaml files are allowed")
+        
+        # Validate file size (max 500 KB = 512,000 bytes)
+        file_obj.seek(0, os.SEEK_END)
+        file_size = file_obj.tell()
+        file_obj.seek(0)  # Reset file pointer to beginning
+        
+        max_size_bytes = 500 * 1024  # 500 KB
+        if file_size > max_size_bytes:
+            file_size_kb = file_size / 1024
+            raise ValueError(f"File size exceeds 500 KB limit. Your file is {file_size_kb:.2f} KB")
+        
+        # Validate file is not empty
+        if file_size == 0:
+            raise ValueError("File is empty. Please upload a valid YAML file")
         
         # Ensure upload directory exists
         config = get_config()
@@ -217,9 +235,16 @@ class PlaybookService:
         name = playbook.name
         file_path = playbook.file_path
         
-        # Set playbook_id to NULL for associated jobs (instead of blocking deletion)
-        from app.models import Job
-        Job.query.filter_by(playbook_id=playbook_id).update({'playbook_id': None})
+        # Delete associated jobs and job logs (cascade delete)
+        from app.models import Job, JobLog
+        
+        # Get all jobs associated with this playbook
+        jobs = Job.query.filter_by(playbook_id=playbook_id).all()
+        
+        # Delete job logs first, then jobs
+        for job in jobs:
+            JobLog.query.filter_by(job_id=job.id).delete()
+            db.session.delete(job)
         
         # Delete file
         if os.path.exists(file_path):
@@ -228,6 +253,7 @@ class PlaybookService:
             except Exception as e:
                 raise ValueError(f"Failed to delete playbook file: {str(e)}")
         
+        # Delete the playbook
         db.session.delete(playbook)
         db.session.commit()
         
@@ -262,6 +288,79 @@ class PlaybookService:
         
         with open(playbook.file_path, 'r') as f:
             return f.read()
+    
+    @staticmethod
+    def update_playbook_content(playbook_id, content, user_id=None):
+        """
+        Update playbook file content with YAML validation
+        
+        Args:
+            playbook_id: Playbook ID
+            content: New YAML content as string
+            user_id: ID of user updating the playbook
+        
+        Returns:
+            Updated playbook object
+        
+        Raises:
+            ValueError: If playbook not found, file doesn't exist, or YAML is invalid
+        """
+        import yaml
+        
+        # Get playbook
+        playbook = Playbook.query.get(playbook_id)
+        if not playbook:
+            raise ValueError(f"Playbook with ID {playbook_id} not found")
+        
+        if not os.path.exists(playbook.file_path):
+            raise ValueError(f"Playbook file not found: {playbook.file_path}")
+        
+        # Validate YAML syntax
+        try:
+            yaml.safe_load(content)
+        except yaml.YAMLError as e:
+            raise ValueError(f"Invalid YAML syntax: {str(e)}")
+        
+        # Backup original file
+        backup_path = f"{playbook.file_path}.backup"
+        try:
+            import shutil
+            shutil.copy2(playbook.file_path, backup_path)
+        except Exception as e:
+            raise ValueError(f"Failed to create backup: {str(e)}")
+        
+        # Write new content
+        try:
+            with open(playbook.file_path, 'w') as f:
+                f.write(content)
+            
+            # Update file hash
+            playbook.file_hash = PlaybookService._calculate_file_hash(playbook.file_path)
+            playbook.updated_at = db.func.now()
+            db.session.commit()
+            
+            # Create audit log
+            if user_id:
+                PlaybookService._create_audit_log(
+                    user_id=user_id,
+                    action='update_content',
+                    resource_id=playbook_id,
+                    details=f"Updated content for playbook '{playbook.name}'"
+                )
+            
+            # Remove backup after successful update
+            if os.path.exists(backup_path):
+                os.remove(backup_path)
+            
+            return playbook
+            
+        except Exception as e:
+            # Restore from backup if write failed
+            if os.path.exists(backup_path):
+                import shutil
+                shutil.copy2(backup_path, playbook.file_path)
+                os.remove(backup_path)
+            raise ValueError(f"Failed to update playbook content: {str(e)}")
     
     @staticmethod
     def verify_playbook_integrity(playbook_id):

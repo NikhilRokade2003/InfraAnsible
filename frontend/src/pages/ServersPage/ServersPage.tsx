@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Plus, Search, Edit, Trash2, CheckCircle, XCircle, MoreVertical, RefreshCw, ChevronRight, X } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, CheckCircle, XCircle, RefreshCw, X, Info } from 'lucide-react';
 import { serversApi } from '../../api/api';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
@@ -18,9 +18,13 @@ export const ServersPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshingMetrics, setRefreshingMetrics] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterOS, setFilterOS] = useState<string>('all');
+  const [filterEnvironment, setFilterEnvironment] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
   const [showModal, setShowModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedServer, setSelectedServer] = useState<Server | null>(null);
   const [editingServer, setEditingServer] = useState<Server | null>(null);
-  const [expandedRow, setExpandedRow] = useState<number | null>(null);
   const [formData, setFormData] = useState<ServerCreateRequest>({
     hostname: '',
     ip_address: '',
@@ -29,7 +33,8 @@ export const ServersPage: React.FC = () => {
     ssh_port: 22,
   });
 
-  const canEdit = user?.role === 'admin' || user?.role === 'operator';
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+  const canEdit = isAdmin;
 
   useEffect(() => {
     loadServers();
@@ -148,29 +153,37 @@ export const ServersPage: React.FC = () => {
     }
   };
 
-  const filteredServers = servers.filter(
-    (server) =>
+  const filteredServers = servers.filter((server) => {
+    const matchesSearch = 
       server.hostname.toLowerCase().includes(searchTerm.toLowerCase()) ||
       server.ip_address.includes(searchTerm) ||
-      server.environment?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+      server.environment?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesOS = filterOS === 'all' || server.os_type === filterOS;
+    const matchesEnvironment = filterEnvironment === 'all' || server.environment === filterEnvironment;
+    const matchesStatus = filterStatus === 'all' || 
+      (filterStatus === 'online' && server.is_active) || 
+      (filterStatus === 'offline' && !server.is_active);
+    
+    return matchesSearch && matchesOS && matchesEnvironment && matchesStatus;
+  });
 
   const getStatusBadge = (isActive: boolean) => {
     if (isActive) {
-      return <span className="px-3 py-1 text-xs font-medium rounded-full bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300">Online</span>;
+      return <span className="px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">Online</span>;
     }
-    return <span className="px-3 py-1 text-xs font-medium rounded-full bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300">Offline</span>;
+    return <span className="px-3 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700">Offline</span>;
   };
 
   const getEnvironmentBadge = (env?: string) => {
     if (!env) return null;
     const colors = {
-      production: 'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300',
-      staging: 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300',
-      dev: 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300',
+      production: 'bg-purple-100 text-purple-700',
+      staging: 'bg-yellow-100 text-yellow-700',
+      dev: 'bg-blue-100 text-blue-700',
     };
     return (
-      <span className={`px-2 py-0.5 text-xs font-medium rounded uppercase ${colors[env as keyof typeof colors] || 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>
+      <span className={`px-2 py-0.5 text-xs font-medium rounded uppercase ${colors[env as keyof typeof colors] || 'bg-gray-100 text-gray-700'}`}>
         {env}
       </span>
     );
@@ -185,7 +198,7 @@ export const ServersPage: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-gray-500 dark:text-gray-400">Loading servers...</div>
+        <div className="text-gray-600">Loading servers...</div>
       </div>
     );
   }
@@ -202,20 +215,53 @@ export const ServersPage: React.FC = () => {
       {/* Search, Add Button and Refresh */}
       <div className="flex items-center gap-4">
         <div className="relative flex-1">
-          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
+          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
           <input
             type="text"
             placeholder="Search servers by name, IP, or tag..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400"
+            className="w-full pl-12 pr-4 py-3 bg-white text-gray-900 border border-primary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 placeholder-gray-400 shadow-glow"
           />
         </div>
+        
+        {/* Filter Dropdowns */}
+        <select
+          value={filterOS}
+          onChange={(e) => setFilterOS(e.target.value)}
+          className="px-4 py-3 bg-white text-gray-900 border border-primary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 shadow-glow cursor-pointer"
+        >
+          <option value="all">All OS</option>
+          <option value="linux">Linux</option>
+          <option value="windows">Windows</option>
+          <option value="macos">macOS</option>
+        </select>
+        
+        <select
+          value={filterEnvironment}
+          onChange={(e) => setFilterEnvironment(e.target.value)}
+          className="px-4 py-3 bg-white text-gray-900 border border-primary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 shadow-glow cursor-pointer"
+        >
+          <option value="all">All Environments</option>
+          <option value="production">Production</option>
+          <option value="staging">Staging</option>
+          <option value="dev">Development</option>
+        </select>
+        
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          className="px-4 py-3 bg-white text-gray-900 border border-primary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 shadow-glow cursor-pointer"
+        >
+          <option value="all">All Status</option>
+          <option value="online">Online</option>
+          <option value="offline">Offline</option>
+        </select>
         {canEdit && (
           <button
             onClick={handleRefreshMetrics}
             disabled={refreshingMetrics}
-            className="flex items-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-4 py-3 bg-success-500 hover:bg-success-600 text-white rounded-lg transition-colors shadow-glow-sm hover:shadow-glow whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
             title="Refresh server metrics (CPU, Memory, Disk)"
           >
             <RefreshCw className={`h-5 w-5 ${refreshingMetrics ? 'animate-spin' : ''}`} />
@@ -224,14 +270,14 @@ export const ServersPage: React.FC = () => {
         )}
         <button
           onClick={handleCreate}
-          className="flex items-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm whitespace-nowrap"
+          className="flex items-center gap-2 px-4 py-3 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors shadow-glow-sm hover:shadow-glow whitespace-nowrap"
         >
           <Plus className="h-5 w-5" />
           Add New Server
         </button>
         <button
           onClick={loadServers}
-          className="p-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-white border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+          className="p-3 bg-gray-200 hover:bg-gray-300 text-gray-700 border border-primary-200 rounded-lg transition-colors shadow-glow-sm hover:shadow-glow"
           title="Refresh"
         >
           <RefreshCw className="h-5 w-5" />
@@ -239,50 +285,42 @@ export const ServersPage: React.FC = () => {
       </div>
 
       {/* Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+      <div className="bg-white border border-primary-200 shadow-glow rounded-lg shadow-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+            <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Server Name
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   IP Address
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   OS / Distro
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Resources
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="bg-white divide-y divide-gray-200">
               {filteredServers.map((server) => (
-                <tr key={server.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                <tr key={server.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <button
-                        onClick={() => setExpandedRow(expandedRow === server.id ? null : server.id)}
-                        className="mr-3 text-gray-400 hover:text-gray-600"
-                      >
-                        <ChevronRight 
-                          className={`h-5 w-5 transition-transform ${expandedRow === server.id ? 'rotate-90' : ''}`}
-                        />
-                      </button>
                       <div>
-                        <div className="text-sm font-semibold text-gray-900 dark:text-white">{server.hostname}</div>
+                        <div className="text-sm font-semibold text-gray-900">{server.hostname}</div>
                         <div className="flex gap-2 mt-1">
                           {server.environment && getEnvironmentBadge(server.environment)}
                           {server.description && (
-                            <span className="px-2 py-0.5 text-xs font-medium rounded uppercase bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                            <span className="px-2 py-0.5 text-xs font-medium rounded uppercase bg-gray-100 text-gray-600">
                               {server.description.substring(0, 10)}
                             </span>
                           )}
@@ -291,13 +329,13 @@ export const ServersPage: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 dark:text-white font-mono">{server.ip_address}</div>
+                    <div className="text-sm text-gray-700 font-mono">{server.ip_address}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {getStatusBadge(server.is_active)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 dark:text-white">
+                    <div className="text-sm text-gray-700">
                       {server.os_version || server.os_type.charAt(0).toUpperCase() + server.os_type.slice(1)}
                     </div>
                   </td>
@@ -305,14 +343,14 @@ export const ServersPage: React.FC = () => {
                     <div className="flex items-center gap-3">
                       <div className="flex-1 min-w-[100px]">
                         <div className="flex items-center justify-between text-xs mb-1">
-                          <span className="text-gray-600 dark:text-gray-400 font-medium">CPU</span>
-                          <span className="text-gray-900 dark:text-white font-semibold">
+                          <span className="text-gray-600 font-medium">CPU</span>
+                          <span className="text-gray-900 font-semibold">
                             {server.cpu_usage !== undefined && server.cpu_usage !== null 
                               ? `${server.cpu_usage.toFixed(1)}%` 
                               : 'N/A'}
                           </span>
                         </div>
-                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                        <div className="w-full bg-gray-200 rounded-full h-2">
                           <div 
                             className={`h-2 rounded-full ${getCPUColor(server.cpu_usage || 0)}`}
                             style={{ width: `${Math.min(server.cpu_usage || 0, 100)}%` }}
@@ -322,40 +360,39 @@ export const ServersPage: React.FC = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="relative inline-block">
+                    <div className="flex items-center justify-end gap-2">
+                      {/* Details button - visible for all users */}
                       <button
-                        onClick={() => setExpandedRow(expandedRow === server.id ? null : server.id)}
-                        className="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                        onClick={() => {
+                          setSelectedServer(server);
+                          setShowDetailsModal(true);
+                        }}
+                        className="px-3 py-1.5 bg-primary-500 hover:bg-primary-600 text-white rounded-md inline-flex items-center gap-1 transition-colors"
+                        title="View Details"
                       >
-                        <MoreVertical className="h-5 w-5" />
+                        <Info className="h-4 w-4" />
+                        Details
                       </button>
-                      {expandedRow === server.id && canEdit && (
-                        <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black dark:ring-gray-700 ring-opacity-5 z-10">
-                          <div className="py-1">
-                            <button
-                              onClick={() => { handleTestConnection(server.id); setExpandedRow(null); }}
-                              className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                            >
-                              Test Connection
-                            </button>
-                            <button
-                              onClick={() => { handleEdit(server); setExpandedRow(null); }}
-                              className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                            >
-                              <Edit className="h-4 w-4 inline mr-2" />
-                              Edit Server
-                            </button>
-                            {user?.role === 'admin' && (
-                              <button
-                                onClick={() => { handleDelete(server.id); setExpandedRow(null); }}
-                                className="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-                              >
-                                <Trash2 className="h-4 w-4 inline mr-2" />
-                                Delete Server
-                              </button>
-                            )}
-                          </div>
-                        </div>
+                      {/* Edit and Delete buttons - only for admin and super_admin */}
+                      {isAdmin && (
+                        <>
+                          <button
+                            onClick={() => handleEdit(server)}
+                            className="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-md inline-flex items-center gap-1 transition-colors"
+                            title="Edit Server"
+                          >
+                            <Edit className="h-4 w-4" />
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(server.id)}
+                            className="px-3 py-1.5 bg-error-500 hover:bg-error-600 text-white rounded-md inline-flex items-center gap-1 transition-colors"
+                            title="Delete Server"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Delete
+                          </button>
+                        </>
                       )}
                     </div>
                   </td>
@@ -367,7 +404,7 @@ export const ServersPage: React.FC = () => {
 
         {filteredServers.length === 0 && !loading && (
           <div className="text-center py-12">
-            <p className="text-gray-500 dark:text-gray-400">No servers found</p>
+            <p className="text-gray-600">No servers found</p>
           </div>
         )}
       </div>
@@ -375,10 +412,10 @@ export const ServersPage: React.FC = () => {
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-xl">
+          <div className="bg-white border border-primary-200 shadow-glow rounded-lg shadow-xl w-full max-w-xl">
             {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-xl font-semibold text-gray-900">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
                 Provision New Server
               </h3>
               <button
@@ -393,7 +430,7 @@ export const ServersPage: React.FC = () => {
             <form onSubmit={handleSubmit} className="px-6 py-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Hostname *
                   </label>
                   <input
@@ -401,13 +438,13 @@ export const ServersPage: React.FC = () => {
                     placeholder="web-server-01"
                     value={formData.hostname}
                     onChange={(e) => setFormData({ ...formData, hostname: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-2.5 bg-gray-50 text-gray-900 placeholder-gray-400 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     IP Address *
                   </label>
                   <input
@@ -415,7 +452,7 @@ export const ServersPage: React.FC = () => {
                     placeholder="192.168.1.100"
                     value={formData.ip_address}
                     onChange={(e) => setFormData({ ...formData, ip_address: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-2.5 bg-gray-50 text-gray-900 placeholder-gray-400 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     required
                   />
                 </div>
@@ -423,13 +460,13 @@ export const ServersPage: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     OS Type *
                   </label>
                   <select
                     value={formData.os_type}
                     onChange={(e) => setFormData({ ...formData, os_type: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+                    className="w-full px-4 py-2.5 bg-gray-50 text-gray-900 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent cursor-pointer"
                     required
                   >
                     <option value="linux">Linux</option>
@@ -439,7 +476,7 @@ export const ServersPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     OS Version
                   </label>
                   <input
@@ -447,14 +484,14 @@ export const ServersPage: React.FC = () => {
                     placeholder="e.g. Ubuntu 22.04"
                     value={formData.os_version || ''}
                     onChange={(e) => setFormData({ ...formData, os_version: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-2.5 bg-gray-50 text-gray-900 placeholder-gray-400 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     SSH Port *
                   </label>
                   <input
@@ -462,13 +499,13 @@ export const ServersPage: React.FC = () => {
                     placeholder="22"
                     value={formData.ssh_port}
                     onChange={(e) => setFormData({ ...formData, ssh_port: parseInt(e.target.value) })}
-                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-2.5 bg-gray-50 text-gray-900 placeholder-gray-400 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     SSH User *
                   </label>
                   <input
@@ -476,14 +513,14 @@ export const ServersPage: React.FC = () => {
                     placeholder="root"
                     value={formData.ssh_user}
                     onChange={(e) => setFormData({ ...formData, ssh_user: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-2.5 bg-gray-50 text-gray-900 placeholder-gray-400 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     required
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   SSH Key Path
                 </label>
                 <input
@@ -491,7 +528,7 @@ export const ServersPage: React.FC = () => {
                   placeholder="/path/to/private_key"
                   value={formData.ssh_key_path || ''}
                   onChange={(e) => setFormData({ ...formData, ssh_key_path: e.target.value })}
-                  className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-2.5 bg-gray-50 text-gray-900 placeholder-gray-400 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
               </div>
 
@@ -500,18 +537,230 @@ export const ServersPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-6 py-2.5 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors font-medium"
+                  className="px-6 py-2.5 text-gray-700 bg-gray-200 hover:bg-gray-300 border border-gray-300 rounded-lg transition-colors font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
+                  className="px-6 py-2.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors font-medium shadow-sm"
                 >
                   Add Server
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Server Details Modal */}
+      {showDetailsModal && selectedServer && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white border border-primary-200 shadow-glow rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 sticky top-0 bg-white">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                Server Details
+              </h3>
+              <button
+                onClick={() => {
+                  setShowDetailsModal(false);
+                  setSelectedServer(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-6">
+              {/* Basic Information */}
+              <div>
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                  <Info className="h-5 w-5 text-primary-500" />
+                  Basic Information
+                </h4>
+                <div className="grid grid-cols-2 gap-4 bg-gray-50 rounded-lg p-4">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Hostname</p>
+                    <p className="font-semibold text-gray-900">{selectedServer.hostname}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">IP Address</p>
+                    <p className="font-semibold text-gray-900">{selectedServer.ip_address}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Operating System</p>
+                    <p className="font-semibold text-gray-900">{selectedServer.os_type}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Status</p>
+                    <div className="flex items-center gap-2">
+                      {selectedServer.status === 'active' ? (
+                        <>
+                          <CheckCircle className="h-4 w-4 text-success-500" />
+                          <span className="font-semibold text-success-600">Active</span>
+                        </>
+                      ) : (
+                        <>
+                          <XCircle className="h-4 w-4 text-error-500" />
+                          <span className="font-semibold text-error-600">Inactive</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* SSH Configuration */}
+              <div>
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">SSH Configuration</h4>
+                <div className="grid grid-cols-2 gap-4 bg-gray-50 rounded-lg p-4">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">SSH User</p>
+                    <p className="font-semibold text-gray-900">{selectedServer.ssh_user}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">SSH Port</p>
+                    <p className="font-semibold text-gray-900">{selectedServer.ssh_port}</p>
+                  </div>
+                  {selectedServer.ssh_key_path && (
+                    <div className="col-span-2">
+                      <p className="text-sm text-gray-600 mb-1">SSH Key Path</p>
+                      <p className="font-semibold text-gray-900 break-all">{selectedServer.ssh_key_path}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Resource Usage */}
+              <div>
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Resource Usage</h4>
+                <div className="space-y-4 bg-gray-50 rounded-lg p-4">
+                  {/* CPU Usage */}
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <p className="text-sm font-medium text-gray-700">CPU Usage</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {selectedServer.cpu_usage !== null && selectedServer.cpu_usage !== undefined 
+                          ? `${selectedServer.cpu_usage.toFixed(1)}%`
+                          : 'N/A'}
+                      </p>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-3">
+                      <div 
+                        className={`h-3 rounded-full transition-all ${
+                          (selectedServer.cpu_usage || 0) > 80 ? 'bg-error-500' :
+                          (selectedServer.cpu_usage || 0) > 60 ? 'bg-warning-500' :
+                          'bg-success-500'
+                        }`}
+                        style={{ width: `${Math.min(selectedServer.cpu_usage || 0, 100)}%` }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  {/* Memory Usage */}
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <p className="text-sm font-medium text-gray-700">Memory Usage</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {selectedServer.memory_usage !== null && selectedServer.memory_usage !== undefined 
+                          ? `${selectedServer.memory_usage.toFixed(1)}%`
+                          : 'N/A'}
+                      </p>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-3">
+                      <div 
+                        className={`h-3 rounded-full transition-all ${
+                          (selectedServer.memory_usage || 0) > 80 ? 'bg-error-500' :
+                          (selectedServer.memory_usage || 0) > 60 ? 'bg-warning-500' :
+                          'bg-success-500'
+                        }`}
+                        style={{ width: `${Math.min(selectedServer.memory_usage || 0, 100)}%` }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  {/* Disk Usage */}
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <p className="text-sm font-medium text-gray-700">Disk Usage</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {selectedServer.disk_usage !== null && selectedServer.disk_usage !== undefined 
+                          ? `${selectedServer.disk_usage.toFixed(1)}%`
+                          : 'N/A'}
+                      </p>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-3">
+                      <div 
+                        className={`h-3 rounded-full transition-all ${
+                          (selectedServer.disk_usage || 0) > 80 ? 'bg-error-500' :
+                          (selectedServer.disk_usage || 0) > 60 ? 'bg-warning-500' :
+                          'bg-success-500'
+                        }`}
+                        style={{ width: `${Math.min(selectedServer.disk_usage || 0, 100)}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Timestamps */}
+              <div>
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Timestamps</h4>
+                <div className="grid grid-cols-2 gap-4 bg-gray-50 rounded-lg p-4">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Created At</p>
+                    <p className="font-medium text-gray-900">{new Date(selectedServer.created_at).toLocaleString('en-US', {
+                      month: 'numeric',
+                      day: 'numeric',
+                      year: 'numeric',
+                      hour: 'numeric',
+                      minute: '2-digit',
+                      hour12: true
+                    })}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Last Updated</p>
+                    <p className="font-medium text-gray-900">{new Date(selectedServer.updated_at).toLocaleString('en-US', {
+                      month: 'numeric',
+                      day: 'numeric',
+                      year: 'numeric',
+                      hour: 'numeric',
+                      minute: '2-digit',
+                      hour12: true
+                    })}</p>
+                  </div>
+                  {selectedServer.last_seen && (
+                    <div className="col-span-2">
+                      <p className="text-sm text-gray-600 mb-1">Last Seen</p>
+                      <p className="font-medium text-gray-900">{new Date(selectedServer.last_seen).toLocaleString('en-US', {
+                        month: 'numeric',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true
+                      })}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={() => {
+                  setShowDetailsModal(false);
+                  setSelectedServer(null);
+                }}
+                className="px-6 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors font-medium"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
